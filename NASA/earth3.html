@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale-1.0">
+    <title>3D Earth, Moon & Sun Simulation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Inter', sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+        #info-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            max-width: 300px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        #controls-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div id="controls-panel">
+        <button id="edit-mode-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors duration-300">
+            Chế độ Chỉnh sửa
+        </button>
+    </div>
+
+    <div id="info-panel" class="text-sm">
+        <h1 class="text-lg font-bold mb-2">Hệ Mặt Trời Tương Tác</h1>
+        <p class="text-gray-300">
+            - <span class="font-semibold">Kéo chuột</span> để xoay camera. <br>
+            - <span class="font-semibold">Lăn chuột</span> để phóng to/thu nhỏ. <br>
+            - <span class="font-semibold">Nháy đúp chuột</span> để zoom nhanh.
+        </p>
+    </div>
+
+    <!-- This script tag imports the core Three.js library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <!-- This script tag imports the OrbitControls for camera manipulation -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <!-- This script tag imports the TransformControls for object manipulation -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
+
+    <script type="module">
+        // SCENE, CAMERA, RENDERER SETUP
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({
+            antialias: true // Enable anti-aliasing for smoother edges
+        });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // TEXTURE LOADER
+        const textureLoader = new THREE.TextureLoader();
+
+        // LIGHTING
+        // Ambient light provides a soft, even light across the scene
+        const ambientLight = new THREE.AmbientLight(0x333333, 1);
+        scene.add(ambientLight);
+
+        // Point light simulates the Sun's light, casting shadows
+        const sunLight = new THREE.PointLight(0xffffff, 1.5, 500);
+        sunLight.position.set(-150, 20, 50); // Moved sun further away
+        scene.add(sunLight);
+        
+        // ORBIT CONTROLS (for user interaction)
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true; // Smooths out the camera movement
+        controls.minDistance = 1.2; // Allows zooming closer to the surface (Earth radius is 1)
+        controls.maxDistance = 100; // Prevents zooming out too far
+        controls.enablePan = true; // Allows panning for a "spaceship" view
+
+        // --- CELESTIAL BODIES ---
+
+        // 1. STARFIELD BACKGROUND
+        const starGeometry = new THREE.SphereGeometry(300, 64, 64); // Increased size
+        const starMaterial = new THREE.MeshBasicMaterial({
+            map: textureLoader.load('https://unpkg.com/three-globe@2.27.2/example/img/starfield.png', 
+                (texture) => { console.log('Star texture loaded successfully'); }, 
+                undefined, 
+                (error) => { console.error('Error loading star texture', error); }
+            ),
+            side: THREE.BackSide // Render the texture on the inside of the sphere
+        });
+        const starField = new THREE.Mesh(starGeometry, starMaterial);
+        scene.add(starField);
+
+        // 2. SUN
+        const sunGeometry = new THREE.SphereGeometry(10, 32, 32);
+        // Emissive material makes the object glow, unaffected by other lights
+        const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+        const sun = new THREE.Mesh(sunGeometry, sunMaterial);
+        sun.position.copy(sunLight.position); // Position the Sun model at the light source
+        scene.add(sun);
+
+        // 3. EARTH
+        const earthGeometry = new THREE.SphereGeometry(1, 64, 64);
+        const earthMaterial = new THREE.MeshPhongMaterial({
+            map: textureLoader.load('https://unpkg.com/three-globe@2.27.2/example/img/earth-day.jpg'),
+            specularMap: textureLoader.load('https://unpkg.com/three-globe@2.27.2/example/img/earth-water.png'),
+            bumpMap: textureLoader.load('https://unpkg.com/three-globe@2.27.2/example/img/earth-topology.png'),
+            bumpScale: 0.1, // Increased for more pronounced depth
+        });
+        const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+        scene.add(earth);
+
+        // 4. CLOUDS
+        const cloudGeometry = new THREE.SphereGeometry(1.02, 64, 64);
+        const cloudMaterial = new THREE.MeshStandardMaterial({
+            map: textureLoader.load('https://unpkg.com/three-globe@2.27.2/example/img/clouds.png'),
+            transparent: true,
+            opacity: 0.6,
+        });
+        const clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
+        earth.add(clouds); // Make clouds a child of Earth to move together
+
+        // 5. MOON
+        const moonGeometry = new THREE.SphereGeometry(0.27, 32, 32); // Moon is roughly 27% the size of Earth
+        const moonMaterial = new THREE.MeshPhongMaterial({
+            map: textureLoader.load('images/moon.jpg'),
+        });
+        const moon = new THREE.Mesh(moonGeometry, moonMaterial);
+        
+        // Pivot point for the Moon's orbit
+        const moonPivot = new THREE.Object3D();
+        earth.add(moonPivot); // The Moon orbits the Earth
+        moonPivot.add(moon);
+        moon.position.set(4, 0, 0); // Distance from Earth to Moon
+
+        // Set initial camera position
+        camera.position.z = 5;
+
+        // --- EDIT MODE CONTROLS ---
+        let isEditMode = false;
+        const transformControls = new THREE.TransformControls(camera, renderer.domElement);
+        scene.add(transformControls);
+        transformControls.detach(); // Initially detached so it's not visible
+
+        // Disable OrbitControls when TransformControls are being used
+        transformControls.addEventListener('dragging-changed', function (event) {
+            controls.enabled = !event.value;
+        });
+
+        const editModeBtn = document.getElementById('edit-mode-btn');
+        editModeBtn.addEventListener('click', () => {
+            isEditMode = !isEditMode;
+            if (isEditMode) {
+                transformControls.attach(earth);
+                editModeBtn.textContent = 'Thoát Chỉnh sửa';
+                editModeBtn.classList.remove('bg-blue-500', 'hover:bg-blue-700');
+                editModeBtn.classList.add('bg-red-500', 'hover:bg-red-700');
+            } else {
+                transformControls.detach();
+                editModeBtn.textContent = 'Chế độ Chỉnh sửa';
+                editModeBtn.classList.remove('bg-red-500', 'hover:bg-red-700');
+                editModeBtn.classList.add('bg-blue-500', 'hover:bg-blue-700');
+            }
+        });
+
+        // ANIMATION LOOP
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Rotations (only if not in edit mode to avoid conflicts)
+            if (!isEditMode) {
+                earth.rotation.y += 0.0005; // Earth's rotation
+                clouds.rotation.y += 0.0001; // Clouds rotate slightly different
+            }
+            moonPivot.rotation.y += 0.002; // Moon's orbit around Earth
+            moon.rotation.y += 0.001; // Moon's own rotation
+            starField.rotation.y -= 0.0001; // Slow rotation of the starfield for a parallax effect
+
+
+            // Update controls
+            controls.update();
+
+            // Render the scene
+            renderer.render(scene, camera);
+        }
+
+        // HANDLE WINDOW RESIZING
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // DOUBLE CLICK TO ZOOM IN
+        window.addEventListener('dblclick', () => {
+            if (!isEditMode) { // Prevent zooming while editing
+                controls.dollyIn(2); // Zooms in by a factor of 2
+            }
+        });
+
+        // Start the animation on window load.
+        window.onload = function () {
+            animate();
+        }
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading system</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    <style>
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .glow {
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.7);
+        }
+        /* Added for smoother transitions on the progress bar */
+        #progress-bar {
+            transition: width 0.5s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center p-4">
+    <!-- Main Container -->
+    <div class="w-full max-w-3xl bg-gray-800 rounded-xl p-6 shadow-2xl border border-gray-700">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-8">
+            <div class="flex items-center space-x-3">
+                <i data-feather="activity" class="text-blue-400"></i>
+                <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">Connecting to system data!</h1>
+            </div>
+            <div class="text-gray-400 text-sm">
+                <span id="timestamp" class="mr-2"></span>
+                <i data-feather="wifi" id="wifi-icon"></i>
+            </div>
+        </div>
+
+        <!-- Loading Bar Section -->
+        <div class="mb-8">
+            <div class="flex justify-between mb-2">
+                <span class="text-gray-300">System Initializing</span>
+                <span id="progress-percent" class="font-mono">0%</span>
+            </div>
+            <div class="h-3 bg-gray-700 rounded-full overflow-hidden">
+                <div id="progress-bar" class="h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <!-- FPS Meter -->
+            <div class="bg-gray-750 p-4 rounded-lg border border-gray-700">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-gray-300 flex items-center">
+                        <i data-feather="monitor" class="mr-2 text-blue-400"></i> FPS
+                    </h3>
+                    <span id="fps-value" class="font-mono text-xl font-bold">--</span>
+                </div>
+                <div class="bg-gray-700 h-2 rounded-full overflow-hidden">
+                    <div id="fps-bar" class="h-full bg-green-500" style="width: 0%"></div>
+                </div>
+                <div class="text-xs text-gray-400 mt-1">
+                    <span id="fps-status">Measuring...</span>
+                </div>
+            </div>
+
+            <!-- Ping Meter -->
+            <div class="bg-gray-750 p-4 rounded-lg border border-gray-700">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-gray-300 flex items-center">
+                        <i data-feather="navigation" class="mr-2 text-purple-400"></i> Ping
+                    </h3>
+                    <span id="ping-value" class="font-mono text-xl font-bold">-- ms</span>
+                </div>
+                <div class="bg-gray-700 h-2 rounded-full overflow-hidden">
+                    <div id="ping-bar" class="h-full bg-yellow-500" style="width: 0%"></div>
+                </div>
+                <div class="text-xs text-gray-400 mt-1">
+                    <span id="ping-status">Testing connection...</span>
+                </div>
+            </div>
+
+            <!-- Network Meter -->
+            <div class="bg-gray-750 p-4 rounded-lg border border-gray-700">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-gray-300 flex items-center">
+                        <i data-feather="wifi" class="mr-2 text-pink-400"></i> Network
+                    </h3>
+                    <span id="network-value" class="font-mono text-xl font-bold">-- Mbps</span>
+                </div>
+                <div class="bg-gray-700 h-2 rounded-full overflow-hidden">
+                    <div id="network-bar" class="h-full bg-pink-500" style="width: 0%"></div>
+                </div>
+                <div class="text-xs text-gray-400 mt-1">
+                    <span id="network-status" class="flex items-center">
+                        <span id="wifi-strength-icon" class="mr-1"></span>
+                        <span id="network-quality">Scanning...</span>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center text-gray-500 text-xs">
+            <p>The system is processing, please wait for data loading to complete...</p>
+        </div>
+    </div>
+
+    <script>
+        feather.replace();
+        
+        // Update timestamp
+        function updateTimestamp() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString();
+            document.getElementById('timestamp').textContent = timeStr;
+        }
+        setInterval(updateTimestamp, 1000);
+        updateTimestamp();
+
+        // Loading animation
+        let progress = 0;
+        const progressBar = document.getElementById('progress-bar');
+        const progressPercent = document.getElementById('progress-percent');
+        
+        // Hàm để xử lý việc tải chậm những phần trăm cuối cùng
+        function finalLoad() {
+            const slowInterval = setInterval(() => {
+                progress += Math.random() * 0.2; // Tăng chậm
+                if (progress > 100) {
+                    progress = 100;
+                }
+                
+                progressBar.style.width = `${progress}%`;
+                progressPercent.textContent = `${Math.floor(progress)}%`;
+
+                if (progress >= 100) {
+                    clearInterval(slowInterval);
+                    // Đợi một chút để người dùng thấy 100%
+                    setTimeout(() => {
+                        // Chuyển hướng sang trang mới
+                        window.location.href = 'isswindow.html';
+                    }, 800);
+                }
+            }, 100); // Cập nhật thường xuyên hơn để tạo cảm giác mượt mà
+        }
+
+        // Bắt đầu quá trình tải nhanh ban đầu
+        const fastInterval = setInterval(() => {
+            progress += Math.random() * 4; // Tăng nhanh ngẫu nhiên
+
+            if (progress >= 98) {
+                progress = 98;
+                clearInterval(fastInterval); // Dừng việc tải nhanh
+                
+                // Cập nhật UI lên 98%
+                progressBar.style.width = `${progress}%`;
+                progressPercent.textContent = `${Math.floor(progress)}%`;
+
+                // Dừng lại 1.5 giây, sau đó bắt đầu tải chậm
+                setTimeout(finalLoad, 1500);
+            } else {
+                progressBar.style.width = `${progress}%`;
+                progressPercent.textContent = `${Math.floor(progress)}%`;
+            }
+        }, 200);
+
+        // FPS Counter
+        let fps = 0;
+        let lastTimestamp = performance.now();
+        const fpsValue = document.getElementById('fps-value');
+        const fpsBar = document.getElementById('fps-bar');
+        const fpsStatus = document.getElementById('fps-status');
+        
+        function measureFPS(timestamp) {
+            fps = 1000 / (timestamp - lastTimestamp);
+            lastTimestamp = timestamp;
+            
+            // Cap at 120 for display purposes
+            const displayFPS = Math.min(Math.round(fps), 120);
+            fpsValue.textContent = displayFPS;
+            
+            // Update bar (max 120fps)
+            const fpsPercent = (displayFPS / 120) * 100;
+            fpsBar.style.width = `${fpsPercent}%`;
+            
+            // Update status
+            if (displayFPS > 61) {
+                fpsStatus.textContent = "Excellent";
+                fpsStatus.className = "text-xs text-green-400";
+            } else if (displayFPS > 30) {
+                fpsStatus.textContent = "Good";
+                fpsStatus.className = "text-xs text-yellow-400";
+            } else {
+                fpsStatus.textContent = "Low";
+                fpsStatus.className = "text-xs text-red-400";
+            }
+            
+            requestAnimationFrame(measureFPS);
+        }
+        requestAnimationFrame(measureFPS);
+
+        // Ping Simulation
+        const pingValue = document.getElementById('ping-value');
+        const pingBar = document.getElementById('ping-bar');
+        const pingStatus = document.getElementById('ping-status');
+        
+        function simulatePing() {
+            // Base ping with some randomness
+            let ping = Math.floor(Math.random() * 40) + 10;
+            
+            // Occasionally simulate spikes
+            if (Math.random() > 0.9) {
+                ping = Math.floor(Math.random() * 300) + 100;
+            }
+            
+            pingValue.textContent = `${ping} ms`;
+            
+            // Update bar (max 300ms)
+            const pingPercent = 100 - Math.min((ping / 300) * 100, 100);
+            pingBar.style.width = `${pingPercent}%`;
+            
+            // Update status
+            if (ping < 50) {
+                pingStatus.textContent = "Excellent";
+                pingStatus.className = "text-xs text-green-400";
+            } else if (ping < 100) {
+                pingStatus.textContent = "Good";
+                pingStatus.className = "text-xs text-yellow-400";
+            } else {
+                pingStatus.textContent = "High Latency";
+                pingStatus.className = "text-xs text-red-400";
+            }
+            
+            setTimeout(simulatePing, 2000);
+        }
+        simulatePing();
+
+        // Network Simulation
+        const networkValue = document.getElementById('network-value');
+        const networkBar = document.getElementById('network-bar');
+        const networkStatus = document.getElementById('network-status');
+        const networkQuality = document.getElementById('network-quality');
+        const wifiStrengthIcon = document.getElementById('wifi-strength-icon');
+        
+        function simulateNetwork() {
+            // Base speed with some randomness
+            let speed = Math.floor(Math.random() * 200) + 50;
+            
+            // Occasionally simulate drops
+            if (Math.random() > 0.9) {
+                speed = Math.floor(Math.random() * 20) + 5;
+            }
+            
+            networkValue.textContent = `${speed} Mbps`;
+            
+            // Update bar (max 300Mbps)
+            const speedPercent = (speed / 300) * 100;
+            networkBar.style.width = `${speedPercent}%`;
+            
+            // Update WiFi strength icon
+            let strengthIcon;
+            if (speed > 150) {
+                strengthIcon = 'wifi';
+                networkQuality.textContent = "Excellent";
+                networkStatus.className = "flex items-center text-xs text-green-400";
+            } else if (speed > 75) {
+                strengthIcon = 'wifi';
+                networkQuality.textContent = "Good";
+                networkStatus.className = "flex items-center text-xs text-yellow-400";
+            } else {
+                strengthIcon = 'wifi-off';
+                networkQuality.textContent = "Poor";
+                networkStatus.className = "flex items-center text-xs text-red-400";
+            }
+            
+            wifiStrengthIcon.innerHTML = `<i data-feather="${strengthIcon}" class="w-3 h-3"></i>`;
+            feather.replace();
+            
+            setTimeout(simulateNetwork, 3000);
+        }
+        simulateNetwork();
+
+        // Update WiFi icon in header
+        setInterval(() => {
+            const wifiIcon = document.getElementById('wifi-icon');
+            const icons = ['wifi-off', 'wifi', 'wifi'];
+            const randomIcon = icons[Math.floor(Math.random() * icons.length)];
+            wifiIcon.setAttribute('data-feather', randomIcon);
+            feather.replace();
+        }, 5000);
+    </script>
+</body>
+</html>
+

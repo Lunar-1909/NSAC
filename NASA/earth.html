@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sphere</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+        #ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .control-panel {
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 1rem;
+            padding: 1rem;
+            pointer-events: all;
+            backdrop-filter: blur(5px);
+        }
+        .zoom-indicator {
+            position: absolute;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            color: white;
+            font-family: sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-black text-white">
+    <div id="ui-overlay">
+        <div class="control-panel space-y-4">
+            <h1 class="text-2xl font-bold">Celestial Sphere Explorer</h1>
+            <div class="flex items-center space-x-2">
+                <i data-feather="sun"></i>
+                <span>Day/Night Cycle</span>
+                <input type="range" id="time-slider" min="0" max="24" value="12" class="w-full">
+            </div>
+            <div class="flex items-center space-x-2">
+                <i data-feather="zoom-in"></i>
+                <span>Zoom Level</span>
+                <input type="range" id="zoom-slider" min="1" max="100" value="10" class="w-full">
+            </div>
+            <button id="reset-view" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg flex items-center space-x-2">
+                <i data-feather="compass"></i>
+                <span>Reset View</span>
+            </button>
+            <button id="reset-view" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg flex items-center space-x-2">
+                <a href="main.html"><span>Back</span></a>
+            </button>
+        </div>
+        <div class="flex space-x-4">
+            <button id="earth-view" class="control-panel bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg flex items-center space-x-2">
+                <i data-feather="globe"></i>
+                <span>Earth</span>
+            </button>
+            <button id="moon-view" class="control-panel bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded-lg flex items-center space-x-2">
+                <i data-feather="moon"></i>
+                <span>Moon</span>
+            </button>
+            <button id="sun-view" class="control-panel bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg flex items-center space-x-2">
+                <i data-feather="sun"></i>
+                <span>Sun</span>
+            </button>
+        </div>
+    </div>
+    <div class="zoom-indicator">
+        <span id="zoom-value">10x</span>
+    </div>
+
+    <script>
+        // Initialize Three.js scene
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Add controls
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+
+        // Set initial camera position
+        camera.position.z = 10;
+
+        // Add ambient light
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        scene.add(ambientLight);
+
+        // Add directional light (sun)
+        const sunLight = new THREE.DirectionalLight(0xffffff, 1);
+        sunLight.position.set(5, 3, 5);
+        scene.add(sunLight);
+
+        // Create celestial bodies
+        let earth, moon, sun;
+
+        // Earth
+        const earthGeometry = new THREE.SphereGeometry(1, 64, 64);
+        const earthTexture = new THREE.TextureLoader().load('images/earth.webp');
+        const earthMaterial = new THREE.MeshStandardMaterial({ 
+            map: earthTexture,
+            roughness: 0.8,
+            metalness: 0.2
+        });
+        earth = new THREE.Mesh(earthGeometry, earthMaterial);
+        scene.add(earth);
+
+        // Moon
+        const moonGeometry = new THREE.SphereGeometry(0.27, 32, 32);
+        const moonTexture = new THREE.TextureLoader().load('images/moon.jpg');
+        const moonMaterial = new THREE.MeshStandardMaterial({ 
+            map: moonTexture,
+            roughness: 1.0,
+            metalness: 0.1
+        });
+        moon = new THREE.Mesh(moonGeometry, moonMaterial);
+        moon.position.set(3, 0, 0);
+        scene.add(moon);
+
+        // Sun
+        const sunGeometry = new THREE.SphereGeometry(2, 32, 32);
+        const sunMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0xffff00,
+            transparent: true,
+            opacity: 0.9
+        });
+        sun = new THREE.Mesh(sunGeometry, sunMaterial);
+        sun.position.set(20, 0, -20);
+        scene.add(sun);
+
+        // Add stars
+        const starGeometry = new THREE.BufferGeometry();
+        const starMaterial = new THREE.PointsMaterial({
+            color: 0xffffff,
+            size: 0.1
+        });
+        
+        const starVertices = [];
+        for (let i = 0; i < 5000; i++) {
+            const x = (Math.random() - 0.5) * 2000;
+            const y = (Math.random() - 0.5) * 2000;
+            const z = (Math.random() - 0.5) * 2000;
+            starVertices.push(x, y, z);
+        }
+        
+        starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+        const stars = new THREE.Points(starGeometry, starMaterial);
+        scene.add(stars);
+
+        // UI Controls
+        const timeSlider = document.getElementById('time-slider');
+        const zoomSlider = document.getElementById('zoom-slider');
+        const zoomValue = document.getElementById('zoom-value');
+        const resetViewBtn = document.getElementById('reset-view');
+        const earthViewBtn = document.getElementById('earth-view');
+        const moonViewBtn = document.getElementById('moon-view');
+        const sunViewBtn = document.getElementById('sun-view');
+
+        let autoRotate = true;
+        let currentDayTime = 0;
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Auto-rotate earth
+            if (autoRotate) {
+                earth.rotation.y += 0.002;
+                
+                // Moon orbit around earth
+                moon.position.x = Math.cos(currentDayTime) * 4;
+                moon.position.z = Math.sin(currentDayTime) * 4;
+                
+                // Increment day time
+                currentDayTime += 0.0005;
+            }
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // Event listeners
+        timeSlider.addEventListener('input', (e) => {
+            const value = e.target.value;
+            // Adjust sun position based on time
+            sunLight.position.x = Math.cos((value / 24) * Math.PI * 2) * 5;
+            sunLight.position.z = Math.sin((value / 24) * Math.PI * 2) * 5;
+        });
+
+        zoomSlider.addEventListener('input', (e) => {
+            const value = e.target.value;
+            zoomValue.textContent = `${value}x`;
+            camera.fov = 75 - (value / 2);
+            camera.updateProjectionMatrix();
+        });
+
+        resetViewBtn.addEventListener('click', () => {
+            camera.position.set(0, 0, 10);
+            controls.reset();
+            zoomSlider.value = 10;
+            zoomValue.textContent = '10x';
+            camera.fov = 70;
+            camera.updateProjectionMatrix();
+            autoRotate = true;
+        });
+
+        earthViewBtn.addEventListener('click', () => {
+            camera.position.set(0, 0, 10);
+            controls.target.set(0, 0, 0);
+            autoRotate = true;
+        });
+
+        moonViewBtn.addEventListener('click', () => {
+            camera.position.copy(moon.position).add(new THREE.Vector3(0, 0, 2));
+            controls.target.copy(moon.position);
+            autoRotate = false;
+        });
+
+        sunViewBtn.addEventListener('click', () => {
+            camera.position.copy(sun.position).add(new THREE.Vector3(0, 0, 5));
+            controls.target.copy(sun.position);
+            autoRotate = false;
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Start animation
+        animate();
+        feather.replace();
+    </script>
+</body>
+</html>

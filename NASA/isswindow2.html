@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lái Tàu Vũ trụ ISS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Inter', sans-serif;
+            color: white;
+        }
+        canvas {
+            display: block;
+        }
+        #blocker {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            cursor: pointer;
+            z-index: 10;
+        }
+        #instructions {
+            width: 60%;
+            font-size: 1.2rem;
+        }
+        
+        /* === PHẦN CSS ĐÃ CẬP NHẬT === */
+        #iss-interior-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Cho phép click xuyên qua overlay */
+            
+            /* Sử dụng hình ảnh của bạn làm nền */
+            background-image: url('image_2be08b.png'); /* <-- THAY ĐƯỜNG DẪN TỚI FILE ẢNH CỦA BẠN */
+            background-size: cover; /* Phủ kín toàn bộ màn hình */
+            background-position: center center; /* Căn giữa hình ảnh */
+            background-repeat: no-repeat; /* Không lặp lại hình */
+
+            z-index: 5; /* Đảm bảo nó nằm trên canvas 3D nhưng dưới màn hình chờ */
+        }
+        
+        /* CSS cho các panel không thay đổi */
+        .control-panel {
+            position: absolute;
+            background-color: rgba(20, 25, 30, 0.85);
+            border: 1px solid #4a5568;
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'Courier New', Courier, monospace;
+            color: #90cdf4;
+            text-shadow: 0 0 3px #90cdf4;
+            width: 220px;
+        }
+        #panel-left { left: 30px; top: 30%; }
+        #panel-right { right: 30px; top: 30%; }
+        .panel-title {
+            font-weight: bold;
+            color: white;
+            border-bottom: 1px solid #4a5568;
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.25rem;
+        }
+        .panel-line {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            margin-bottom: 0.35rem;
+        }
+        .status-ok { color: #68d391; }
+        .status-val { color: #f7fafc; }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div id="blocker">
+        <div id="instructions">
+            <p style="font-size: 36px; font-weight: bold;">Mô phỏng Quỹ đạo ISS</p>
+            <p>Nhấp chuột để bắt đầu</p>
+            <br>
+            <p><strong>Điều khiển:</strong></p>
+            <p>Tàu sẽ tự động bay quanh Trái Đất</p>
+            <p>W / S = Tăng / Giảm tốc độ quỹ đạo</p>
+            <p>CHUỘT = Nhìn xung quanh 360°</p>
+            <p>CUỘN CHUỘT = Zoom</p>
+            <p>ESC = Mở khóa chuột</p>
+                <button id="reset-view" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg space-x-2">
+                <a href="main.html"><span>BACK</span></a>
+        </div>
+    </div>
+
+    <div id="iss-interior-overlay">
+        <div id="panel-left" class="control-panel">
+            <div class="panel-title">HỆ THỐNG</div>
+            <div class="panel-line"><span>Năng lượng:</span><span class="status-ok">ỔN ĐỊNH</span></div>
+            <div class="panel-line"><span>Oxy:</span><span class="status-ok">99.8%</span></div>
+            <div class="panel-line"><span>Áp suất:</span><span class="status-ok">101.2 kPa</span></div>
+            <div class="panel-line"><span>Trạng thái:</span><span class="status-ok">QUỸ ĐẠO</span></div>
+        </div>
+        <div id="panel-right" class="control-panel">
+            <div class="panel-title">THÔNG SỐ BAY</div>
+            <div class="panel-line"><span>Độ cao:</span><span id="altitude-val" class="status-val">0 km</span></div>
+            <div class="panel-line"><span>Tốc độ:</span><span id="speed-val" class="status-val">0 km/s</span></div>
+            <div class="panel-line"><span>Thiên thể:</span><span class="status-val">TRÁI ĐẤT</span></div>
+            <div class="panel-line"><span>Trạm kế tiếp:</span><span class="status-val">TỰ DO</span></div>
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
+
+    <script type="module">
+        // TOÀN BỘ PHẦN JAVASCRIPT CỦA BẠN GIỮ NGUYÊN, KHÔNG THAY ĐỔI
+        // ...
+        // SCENE, CAMERA, RENDERER
+         const scene = new THREE.Scene();
+         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 3000);
+         const renderer = new THREE.WebGLRenderer({ antialias: true });
+         renderer.setSize(window.innerWidth, window.innerHeight);
+         document.body.appendChild(renderer.domElement);
+
+         // UI ELEMENTS
+         const blocker = document.getElementById('blocker');
+         const instructions = document.getElementById('instructions');
+         const altitudeElement = document.getElementById('altitude-val');
+         const speedElement = document.getElementById('speed-val');
+
+         // POINTER LOCK CONTROLS
+         const controls = new THREE.PointerLockControls(camera, document.body);
+         blocker.addEventListener('click', () => {
+             // Khắc phục lỗi UNHANDLEDREJECTION trong môi trường iframe.
+             // Bằng cách gọi trực tiếp requestPointerLock() và thêm .catch(), chúng ta có thể bắt (catch) promise bị từ chối (rejected),
+             // điều này ngăn chặn lỗi crash trong khi vẫn cho phép thư viện xử lý sự kiện 'pointerlockerror' một cách bình thường.
+             document.body.requestPointerLock().catch(() => {});
+         });
+         controls.addEventListener('lock', () => {
+             instructions.style.display = 'none';
+             blocker.style.display = 'none';
+         });
+         controls.addEventListener('unlock', () => {
+             blocker.style.display = 'flex';
+             instructions.style.display = '';
+         });
+
+         // LIGHTING
+         scene.add(new THREE.AmbientLight(0xffffff, 0.2));
+         const pointLight = new THREE.PointLight(0xffffff, 2.5, 3000); // Brighter light
+         scene.add(pointLight);
+
+         // TEXTURES
+         const textureLoader = new THREE.TextureLoader();
+
+         // --- SOLAR SYSTEM PIVOT ---
+         const solarSystem = new THREE.Object3D();
+         scene.add(solarSystem);
+
+         // --- ENVIRONMENT & SUN ---
+         // Background starfield texture
+         const starGeometry = new THREE.SphereGeometry(2500, 64, 64);
+         const starMaterial = new THREE.MeshBasicMaterial({ map: textureLoader.load('https://unpkg.com/three-globe@2.27.2/example/img/starfield.png'), side: THREE.BackSide });
+         scene.add(new THREE.Mesh(starGeometry, starMaterial));
+
+         // Add multiple layers of stars for parallax effect
+         function createStars(radius, count) {
+             const vertices = [];
+             for (let i = 0; i < count; i++) {
+                 const x = THREE.MathUtils.randFloatSpread(radius * 2);
+                 const y = THREE.MathUtils.randFloatSpread(radius * 2);
+                 const z = THREE.MathUtils.randFloatSpread(radius * 2);
+                 vertices.push(x, y, z);
+             }
+             const geometry = new THREE.BufferGeometry();
+             geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+             const material = new THREE.PointsMaterial({ color: 0xffffff, size: Math.random() * 0.5 + 0.1, sizeAttenuation: true });
+             return new THREE.Points(geometry, material);
+         }
+         scene.add(createStars(800, 5000));
+         scene.add(createStars(1500, 7000));
+
+         const sunGeometry = new THREE.SphereGeometry(20, 32, 32);
+         const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xfff5b2, map: textureLoader.load('https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets/images/sunmap.jpg') });
+         const sun = new THREE.Mesh(sunGeometry, sunMaterial);
+         solarSystem.add(sun); 
+
+         const EARTH_RADIUS =    1;
+
+         // --- PLANETS ---
+         // Mercury
+         const mercurySystem = new THREE.Object3D();
+         solarSystem.add(mercurySystem);
+         mercurySystem.position.x = 80;
+         const mercuryGeometry = new THREE.SphereGeometry(0.38 * EARTH_RADIUS, 32, 32);
+         const mercuryMaterial = new THREE.MeshStandardMaterial({ map: textureLoader.load('https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets/images/mercurymap.jpg'), bumpMap: textureLoader.load('https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets/images/mercurybump.jpg'), bumpScale: 0.02 });
+         const mercury = new THREE.Mesh(mercuryGeometry, mercuryMaterial);
+         mercurySystem.add(mercury);
+
+         // Venus
+         const venusSystem = new THREE.Object3D();
+         solarSystem.add(venusSystem);
+         venusSystem.position.x = 115;
+         const venusGeometry = new THREE.SphereGeometry(0.95 * EARTH_RADIUS, 32, 32);
+         const venusMaterial = new THREE.MeshStandardMaterial({ map: textureLoader.load('https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets/images/venusmap.jpg'), bumpMap: textureLoader.load('https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets/images/venusbump.jpg'), bumpScale: 0.02 });
+         const venus = new THREE.Mesh(venusGeometry, venusMaterial);
+         venusSystem.add(venus);
+
+         // Earth
+         const earthSystem = new THREE.Object3D();
+         solarSystem.add(earthSystem);
+         earthSystem.position.x = 150;
+         const earthGeometry = new THREE.SphereGeometry(EARTH_RADIUS, 64, 64);
+         const earthMaterial = new THREE.MeshStandardMaterial({
+             map: textureLoader.load('https://unpkg.com/three-globe@2.27.2/example/img/earth-day.jpg'),
+             bumpMap: textureLoader.load('https://unpkg.com/three-globe@2.27.2/example/img/earth-topology.png'),
+             bumpScale: 0.015,
+             roughnessMap: textureLoader.load('https://unpkg.com/three-globe@2.27.2/example/img/earth-water.png'),
+             roughness: 0.8,
+             metalness: 0.1,
+             emissiveMap: textureLoader.load('https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets/images/earthlights4k.jpg'),
+             emissive: 0xffffff,
+             emissiveIntensity: 1.0
+         });
+         const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+         earthSystem.add(earth);
+         
+         const atmosphereGeometry = new THREE.SphereGeometry(EARTH_RADIUS + 0.04, 64, 64);
+         const atmosphereMaterial = new THREE.ShaderMaterial({
+             vertexShader: `varying vec3 vNormal; void main() { vNormal = normalize( normalMatrix * normal ); gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }`,
+             fragmentShader: `varying vec3 vNormal; void main() { float intensity = pow( 0.5 - dot( vNormal, vec3( 0.0, 0.0, 1.0 ) ), 4.0 ); gl_FragColor = vec4( 0.2, 0.5, 1.0, 1.0 ) * intensity; }`,
+             blending: THREE.AdditiveBlending, side: THREE.BackSide, transparent: true
+         });
+         const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+         earthSystem.add(atmosphere);
+
+         const cloudGeometry = new THREE.SphereGeometry(EARTH_RADIUS + 0.008, 64, 64);
+         const cloudMaterial = new THREE.MeshStandardMaterial({ map: textureLoader.load('https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets/images/clouds.png'), transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending });
+         const clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
+         earthSystem.add(clouds);
+
+         const moonPivot = new THREE.Object3D();
+         earthSystem.add(moonPivot);
+         const moonGeometry = new THREE.SphereGeometry(EARTH_RADIUS * 0.27, 32, 32);
+         const moonMaterial = new THREE.MeshStandardMaterial({ map: textureLoader.load('https://unpkg.com/three-globe@2.27.2/example/img/moon.jpg'), roughness: 0.9 });
+         const moon = new THREE.Mesh(moonGeometry, moonMaterial);
+         moon.position.x = 4; // Closer orbit to Earth
+         moonPivot.add(moon);
+         
+         // Mars
+         const marsSystem = new THREE.Object3D();
+         solarSystem.add(marsSystem);
+         marsSystem.position.x = 220;
+         const marsGeometry = new THREE.SphereGeometry(0.53 * EARTH_RADIUS, 32, 32);
+         const marsMaterial = new THREE.MeshStandardMaterial({ map: textureLoader.load('https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets/images/marsmap1k.jpg'), bumpMap: textureLoader.load('https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets/images/marsbump1k.jpg'), bumpScale: 0.05 });
+         const mars = new THREE.Mesh(marsGeometry, marsMaterial);
+         marsSystem.add(mars);
+
+         // Jupiter
+         const jupiterSystem = new THREE.Object3D();
+         solarSystem.add(jupiterSystem);
+         jupiterSystem.position.x = 450;
+         const jupiterGeometry = new THREE.SphereGeometry(4 * EARTH_RADIUS, 64, 64);
+         const jupiterMaterial = new THREE.MeshStandardMaterial({ map: textureLoader.load('https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets/images/jupitermap.jpg')});
+         const jupiter = new THREE.Mesh(jupiterGeometry, jupiterMaterial);
+         jupiterSystem.add(jupiter);
+
+         // Saturn
+         const saturnSystem = new THREE.Object3D();
+         solarSystem.add(saturnSystem);
+         saturnSystem.position.x = 700;
+         const saturnGeometry = new THREE.SphereGeometry(3.5 * EARTH_RADIUS, 64, 64);
+         const saturnMaterial = new THREE.MeshStandardMaterial({ map: textureLoader.load('https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets/images/saturnmap.jpg')});
+         const saturn = new THREE.Mesh(saturnGeometry, saturnMaterial);
+         saturnSystem.add(saturn);
+         const ringGeometry = new THREE.RingGeometry(5, 7, 64);
+         const ringMaterial = new THREE.MeshBasicMaterial({ 
+             map: textureLoader.load('https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets/images/saturnringcolor.jpg'), 
+             side: THREE.DoubleSide, 
+             transparent: true, 
+             alphaMap: textureLoader.load('https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets/images/saturnringpattern.gif')
+         });
+         const rings = new THREE.Mesh(ringGeometry, ringMaterial);
+         rings.rotation.x = Math.PI * 0.5; // Rotate rings to be horizontal
+         saturnSystem.add(rings);
+
+         // Uranus
+         const uranusSystem = new THREE.Object3D();
+         solarSystem.add(uranusSystem);
+         uranusSystem.position.x = 900;
+         const uranusGeometry = new THREE.SphereGeometry(2 * EARTH_RADIUS, 32, 32);
+         const uranusMaterial = new THREE.MeshStandardMaterial({ map: textureLoader.load('https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets/images/uranusmap.jpg')});
+         const uranus = new THREE.Mesh(uranusGeometry, uranusMaterial);
+         uranusSystem.add(uranus);
+
+         // Neptune
+         const neptuneSystem = new THREE.Object3D();
+         solarSystem.add(neptuneSystem);
+         neptuneSystem.position.x = 1100;
+         const neptuneGeometry = new THREE.SphereGeometry(1.9 * EARTH_RADIUS, 32, 32);
+         const neptuneMaterial = new THREE.MeshStandardMaterial({ map: textureLoader.load('https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets/images/neptunemap.jpg')});
+         const neptune = new THREE.Mesh(neptuneGeometry, neptuneMaterial);
+         neptuneSystem.add(neptune);
+
+
+         // --- SHIP & ORBIT CONTROLS ---
+         const keysPressed = {};
+         const shipPivot = new THREE.Object3D();
+         earthSystem.add(shipPivot); // Ship orbits the Earth
+         shipPivot.add(controls.getObject());
+
+         const minOrbitRadius = EARTH_RADIUS + 0.4;
+         const maxOrbitRadius = EARTH_RADIUS + 1.2;
+         let currentOrbitRadius = EARTH_RADIUS + 0.8;
+         controls.getObject().position.set(-currentOrbitRadius, 0.05, 0); 
+         controls.getObject().rotation.y = -Math.PI / 2;
+
+         let baseOrbitSpeed = 0.02;
+         let userSpeedModifier = 0;
+         const damping = 0.95;
+
+         document.addEventListener('keydown', (event) => keysPressed[event.code] = true);
+         document.addEventListener('keyup', (event) => keysPressed[event.code] = false);
+         
+         document.addEventListener('wheel', (event) => {
+             if (!controls.isLocked) return;
+             const zoomAmount = event.deltaY * 0.001;
+             const newX = controls.getObject().position.x - zoomAmount;
+             controls.getObject().position.x = THREE.MathUtils.clamp(newX, -maxOrbitRadius, -minOrbitRadius);
+         });
+
+         const clock = new THREE.Clock();
+
+         function animate() {
+             requestAnimationFrame(animate);
+             const delta = clock.getDelta();
+
+             if (controls.isLocked) {
+                 if (keysPressed['KeyW']) userSpeedModifier += 0.03;
+                 if (keysPressed['KeyS']) userSpeedModifier -= 0.03;
+             }
+
+             userSpeedModifier *= damping;
+
+             // Update ship's orbit around Earth
+             const totalOrbitSpeed = baseOrbitSpeed + userSpeedModifier;
+             shipPivot.rotation.y += totalOrbitSpeed * delta;
+             
+             // Update planet's self-rotation
+             mercury.rotation.y += 0.02 * delta;
+             venus.rotation.y += 0.015 * delta;
+             earth.rotation.y += 0.05 * delta;
+             clouds.rotation.y += 0.04 * delta;
+             mars.rotation.y += 0.03 * delta;
+             jupiter.rotation.y += 0.1 * delta;
+             saturn.rotation.y += 0.09 * delta;
+             uranus.rotation.y += 0.06 * delta;
+             neptune.rotation.y += 0.055 * delta;
+
+             // Update moon's orbit around Earth
+             moonPivot.rotation.y += 0.05 * delta;
+
+             // Update planet's orbit around Sun
+             mercurySystem.rotation.y += 0.01 * delta;
+             venusSystem.rotation.y += 0.007 * delta;
+             earthSystem.rotation.y += 0.005 * delta;
+             marsSystem.rotation.y += 0.004 * delta;
+             jupiterSystem.rotation.y += 0.002 * delta;
+             saturnSystem.rotation.y += 0.001 * delta;
+             uranusSystem.rotation.y += 0.0008 * delta;
+             neptuneSystem.rotation.y += 0.0006 * delta;
+
+             // Update HUD
+             const effectiveOrbitRadius = -controls.getObject().position.x;
+             const tangentialSpeed = Math.abs(totalOrbitSpeed * effectiveOrbitRadius);
+             speedElement.textContent = `${(tangentialSpeed * 27000).toFixed(0)} km/h`;
+             const altitude = (effectiveOrbitRadius - EARTH_RADIUS) * 6371;
+             altitudeElement.textContent = `${altitude.toFixed(1)} km`;
+
+             renderer.render(scene, camera);
+         }
+
+         window.addEventListener('resize', () => {
+             camera.aspect = window.innerWidth / window.innerHeight;
+             camera.updateProjectionMatrix();
+             renderer.setSize(window.innerWidth, window.innerHeight);
+         });
+
+         animate();
+    </script>
+</body>
+</html>
